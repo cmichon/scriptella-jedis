@@ -1,0 +1,34 @@
+<!DOCTYPE etl SYSTEM "http://scriptella.javaforge.com/dtd/etl.dtd">
+<etl>
+  <connection id="java" driver="janino"/>
+  <connection id="in1" driver="text" url="TAXNUM.DAT"/>
+  <script connection-id="java">
+    import java.io.*;
+    import org.apache.commons.compress.archivers.sevenz.*;
+    SevenZFile sevenZFile = new SevenZFile(new File("TAXNUM.7z"));
+    SevenZArchiveEntry entry = sevenZFile.getNextEntry();
+    while(entry!=null){
+      FileOutputStream out = new FileOutputStream(entry.getName());
+      byte[] content = new byte[(int) entry.getSize()];
+      sevenZFile.read(content, 0, content.length);
+      out.write(content);
+      out.close();
+      entry = sevenZFile.getNextEntry();
+    }
+    sevenZFile.close();
+  </script>
+  <query connection-id="in1">
+    ^(.{45}) (.{30}) (.)([CFGKOPSV]) (.{12}) ( ) (.{3}) (\d{6})$
+    <script connection-id="java">
+      import redis.clients.jedis.*;
+      Jedis j = JedisSingleton.getInstance();
+      j.set(get("8").toString(),get("1").toString().trim());
+    </script>
+  </query>
+  <script connection-id="java">
+    import redis.clients.jedis.*;
+    Jedis j = JedisSingleton.getInstance();
+    j.close();
+  </script>
+
+</etl>
